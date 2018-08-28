@@ -1,6 +1,6 @@
 package org.xmlet.htmlapitest.utils;
 
-import org.xmlet.htmlapifaster.*;
+import org.xmlet.htmlapifaster.ElementVisitor;
 
 public class CustomVisitor extends ElementVisitor {
 
@@ -8,7 +8,7 @@ public class CustomVisitor extends ElementVisitor {
     private StringBuilder stringBuilder = new StringBuilder();
 
     @Override
-    public void visit(Element elem) {
+    public void visitElement(String elementName) {
         int length = stringBuilder.length();
         boolean isClosed = stringBuilder.lastIndexOf(">") == length - 1;
         boolean isNewlined = stringBuilder.lastIndexOf("\n") == length - 1;
@@ -19,74 +19,74 @@ public class CustomVisitor extends ElementVisitor {
         }
 
         if (length != 0 && isClosed && !isNewlined){
-            stringBuilder.append("\n");
+            stringBuilder.append('\n');
         }
 
         doTabs();
-        stringBuilder.append("<").append(elem.getName());
+        stringBuilder.append('<').append(elementName);
         ++tabCount;
     }
 
     private void doTabs() {
+        /*
         for (int i = 0; i < tabCount; i++) {
-            stringBuilder.append("\t");
+            stringBuilder.append('\t');
         }
+        */
+
+        char[] tabs = new char[tabCount];
+
+        for (int i = 0; i < tabCount; i++) {
+            tabs[i] = '\t';
+        }
+
+        stringBuilder.append(tabs);
     }
 
     @Override
-    public void visit(Attribute attribute) {
-        stringBuilder.append(" ").append(attribute.getName()).append("=\"").append(attribute.getValue()).append("\"");
+    public void visitAttribute(String attributeName, String attributeValue) {
+        stringBuilder.append(' ').append(attributeName).append("=\"").append(attributeValue).append('\"');
     }
 
     @Override
-    public void visitParent(Element element) {
+    public void visitParent(String elementName) {
         closeIfNeeded();
 
         if (!stringBuilder.toString().endsWith("\n")){
-            stringBuilder.append("\n");
+            stringBuilder.append('\n');
         }
 
         --tabCount;
         doTabs();
-        stringBuilder.append("</").append(element.getName()).append(">");
+        stringBuilder.append("</").append(elementName).append('>');
 
     }
 
     private void closeIfNeeded(){
         if (!stringBuilder.toString().endsWith("\n") && !stringBuilder.toString().endsWith(">")){
-            stringBuilder.append(">");
+            stringBuilder.append('>');
         }
     }
 
-    public String getResult(Element x){
-        while (!(x instanceof Html) ){
-            x = x.º();
-        }
-
-        x.º();
-
+    public String getResult(){
         return stringBuilder.toString();
     }
 
     @Override
-    public void visit(Text text){
-        String textValue = text.getValue();
-
-        if (textValue != null){
+    public <R> void visitText(R text){
+        if (text != null){
             stringBuilder.append(">\n");
             doTabs();
-            stringBuilder.append(textValue).append("\n");
+            stringBuilder.append(text).append('\n');
         }
     }
 
     @Override
-    public void visit(Comment comment){
-        String textValue = comment.getValue();
-
-        if (textValue != null){
+    public <R> void visitComment(R comment){
+        if (comment != null){
             stringBuilder.append(">\n");
             doTabs();
-            stringBuilder.append("<!-- ").append(textValue).append(" -->\n");
+            stringBuilder.append("<!-- ").append(comment).append(" -->\n");
         }
     }
 }
