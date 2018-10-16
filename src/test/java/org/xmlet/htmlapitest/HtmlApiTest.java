@@ -16,24 +16,11 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class HtmlApiTest {
 
-    private static final String PACKAGE = "org.xmlet.htmlapi";
-
-    @SuppressWarnings("unused")
-    public void dummy(){
-        CustomVisitor customVisitor = new CustomVisitor();
-
-        Body<Element> body = new Body<>(customVisitor);
-
-        body.table();
-
-        Html<Element> html = new Html<>(customVisitor);
-
-        html.attrDir(EnumDir.LTR);
-        html.attrManifest("manifestValue");
-    }
+    private static final String PACKAGE = "org.xmlet.htmlapifaster";
 
     @Test
     public void testGeneratedClassesIntegrity() throws Exception {
@@ -42,31 +29,31 @@ public class HtmlApiTest {
         new Html<Html>(customVisitor)
             .head()
                 .comment("This is a comment.")
-                .meta().attrCharset("UTF-8").º()
+                .meta().attrCharset("UTF-8").__()
                 .title()
-                    .text("Title").º()
-                .link().attrType(EnumTypeContentType.TEXT_CSS).attrHref("/assets/images/favicon.png").º()
-                .link().attrType(EnumTypeContentType.TEXT_CSS).attrHref("/assets/styles/main.css").º().º()
+                    .text("Title").__()
+                .link().attrType(EnumTypeContentType.TEXT_CSS).attrHref("/assets/images/favicon.png").__()
+                .link().attrType(EnumTypeContentType.TEXT_CSS).attrHref("/assets/styles/main.css").__().__()
             .body().attrClass("clear")
                 .div()
                     .header()
                         .section()
                             .div()
-                                .img().attrId("brand").attrSrc("./assets/images/logo.png").º()
+                                .img().attrId("brand").attrSrc("./assets/images/logo.png").__()
                                 .aside()
                                     .em()
                                         .text("Advertisement")
                                         .span()
                                             .text("HtmlApi is great!")
-                                        .º()
-                                    .º()
-                                .º()
-                            .º()
-                        .º()
-                    .º()
-                .º()
-            .º()
-        .º();
+                                        .__()
+                                    .__()
+                                .__()
+                            .__()
+                        .__()
+                    .__()
+                .__()
+            .__()
+        .__();
 
         String result = customVisitor.getResult();
 
@@ -109,7 +96,7 @@ public class HtmlApiTest {
     }
 
     /**
-     * Tests the custom visitor without applying any model to text<T>
+     * Tests the custom regex.visitor without applying any model to text<T>
      */
     @Test
     public void testVisitsWithoutModel(){
@@ -119,9 +106,9 @@ public class HtmlApiTest {
                 .body()
                     .div()
                         .text("This is a regular String.")
-                    .º()
-                .º()
-            .º();
+                    .__()
+                .__()
+            .__();
 
         String result = visitor.getResult();
 
@@ -147,21 +134,21 @@ public class HtmlApiTest {
                     .tr()
                         .th()
                             .text("Title")
-                        .º()
-                    .º()
+                        .__()
+                    .__()
                     .of(table ->
                         tdValues.forEach(value ->
                             table
                                 .tr()
                                     .td()
                                         .text(value)
-                                    .º()
-                                .º()
+                                    .__()
+                                .__()
                         )
                     )
-                .º()
-            .º()
-        .º();
+                .__()
+            .__()
+        .__();
 
         String result = visitor.getResult();
 
@@ -206,7 +193,7 @@ public class HtmlApiTest {
 
         Assert.assertNotNull(targetUrl);
 
-        String target = targetUrl.getPath().replaceAll("test-", "") + "org/xmlet/htmlapi";
+        String target = targetUrl.getPath().replaceAll("test-", "") + "org/xmlet/htmlapifaster";
 
         File generatedObjectsFolder = new File(target);
         File[] generatedFiles = generatedObjectsFolder.listFiles();
@@ -226,22 +213,32 @@ public class HtmlApiTest {
 
                 Class<?> klass = ucl.loadClass(PACKAGE + "." + className);
 
-                if (Modifier.isAbstract(klass.getModifiers()) || Modifier.isInterface(klass.getModifiers()) || klass.isEnum()){
+                if (!shouldBeTested(klass)){
                     continue;
                 }
 
                 if (implementsElement(klass)){
                     Constructor ctor1 = klass.getConstructor(ElementVisitor.class);
                     Constructor ctor2 = klass.getConstructor(Element.class);
+                    Constructor ctor3 = klass.getDeclaredConstructor(Element.class, ElementVisitor.class, boolean.class);
 
                     Object elementInstance = ctor1.newInstance(visitor);
                     ctor2.newInstance(dummy);
+                    ctor3.setAccessible(true);
+                    ctor3.newInstance(dummy, visitor, true);
+                    ctor3.newInstance(dummy, visitor, false);
 
                     Method[] methods = klass.getMethods();
+
+                    Consumer c = (o) -> {};
 
                     for (Method method : methods) {
                         if (method.getParameterCount() == 0 && Element.class.isAssignableFrom(method.getReturnType())){
                             method.invoke(elementInstance);
+                        }
+
+                        if (method.getName().equals("of") || method.getName().equals("dynamic")){
+                            method.invoke(elementInstance, c);
                         }
 
                         if (method.getParameterCount() == 1 && method.getName().startsWith("attr")){
@@ -270,12 +267,18 @@ public class HtmlApiTest {
                                 if (paramType.equals(Boolean.class)){
                                     method.invoke(elementInstance, false);
                                 }
+                            } else {
+                                method.invoke(elementInstance, paramType.getDeclaredFields()[0].get(elementInstance));
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    private boolean shouldBeTested(Class klass) {
+        return  !(Modifier.isAbstract(klass.getModifiers()) || Modifier.isInterface(klass.getModifiers()) || klass.isEnum() || klass.equals(Text.class));
     }
 
     private boolean implementsElement(Class<?> klass) {
